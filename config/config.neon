@@ -1,0 +1,34 @@
+services:
+	console.application:
+		type: Symfony\Component\Console\Application
+		arguments:
+			name: '68publishers/toggl-to-jira'
+			version: dev
+		setup:
+			- add(@console.command.sync)
+
+	console.command.sync:
+		autowired: no
+		type: App\Console\Command\SyncCommand
+
+	synchronizer:
+		type: App\Synchronization\Synchronizer
+		arguments:
+			sourceReader: @client.toggl
+			destinationWriter: @client.jira
+
+	http_client: GuzzleHttp\Client
+
+	client.toggl:
+		autowired: no
+		type: App\Client\Toggl\TogglClient
+		arguments:
+			apiToken: ::env(TOGGL_API_TOKEN)
+
+	client.jira:
+		autowired: no
+		type: App\Client\Jira\JiraClient
+		arguments:
+			username: ::env(JIRA_USERNAME)
+			apiToken: ::env(JIRA_API_TOKEN)
+			websiteUrl: ::env(JIRA_WEBSITE_URL)

@@ -1,0 +1,8 @@
+# Application
+.env
+.env.local.php
+composer.lock
+vendor/
+
+# Project files etc.
+.idea
