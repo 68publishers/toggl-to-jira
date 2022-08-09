@@ -7,6 +7,7 @@ namespace App\Client\Jira;
 use Throwable;
 use DateTimeZone;
 use DateTimeImmutable;
+use DateTimeInterface;
 use App\ValueObject\Entry;
 use App\ValueObject\Range;
 use Psr\Log\LoggerInterface;
@@ -44,13 +45,9 @@ final class JiraClient implements WriteClientInterface, ReadClientInterface
 		$accountId = $this->fetchAccountId();
 
 		foreach ($issueCodes as $issueCode) {
-			$issue = $this->fetchIssue($issueCode, $logger);
+			$workLogs = $this->fetchWorkLog($issueCode, $range, $logger);
 
-			if (NULL === $issue) {
-				continue;
-			}
-
-			foreach ($issue->worklog->worklogs as $workLog) {
+			foreach ($workLogs as $workLog) {
 				$workLogStart = (new DateTimeImmutable($workLog->started))->setTimezone(new DateTimeZone('UTC'));
 
 				if ($workLog->author->accountId !== $accountId || $workLogStart < $range->start || $workLogStart > $range->end) {
@@ -73,7 +70,7 @@ final class JiraClient implements WriteClientInterface, ReadClientInterface
 	public function createEntry(Entry $entry, LoggerInterface $logger): void
 	{
 		try {
-			$issueTitle = $this->fetchIssue($entry->issue, $logger)->summary;
+			$issueTitle = (string) $this->fetchIssueTitle($entry->issue, $logger);
 
 			$this->client->post($this->websiteUrl . '/issue/' . $entry->issue . '/worklog', [
 				'headers' => $this->createHeaders(),
@@ -108,7 +105,7 @@ final class JiraClient implements WriteClientInterface, ReadClientInterface
 		}
 
 		try {
-			$issueTitle = $this->fetchIssue($entry->issue, $logger)->summary;
+			$issueTitle = (string) $this->fetchIssueTitle($entry->issue, $logger);
 
 			$this->client->put($this->websiteUrl . '/issue/' . $entry->issue . '/worklog/' . $entry->id, [
 				'headers' => $this->createHeaders(),
@@ -163,20 +160,47 @@ final class JiraClient implements WriteClientInterface, ReadClientInterface
 		}
 	}
 
-	private function fetchIssue(string $issueCode, LoggerInterface $logger): ?object
+	private function fetchWorkLog(string $issueCode, Range $range, LoggerInterface $logger): array
 	{
-		return $this->hitCache('issue-' . $issueCode, function () use ($issueCode, $logger) {
+		return $this->hitCache('work-log-' . $issueCode . '-' . $range->start->format(DateTimeInterface::ATOM) . '-' . $range->end->format(DateTimeInterface::ATOM), function () use ($issueCode, $range, $logger) {
 			try {
-				$response = $this->client->get($this->websiteUrl . '/issue/' . $issueCode, [
+				$response = $this->client->get($this->websiteUrl . '/issue/' . $issueCode . '/worklog', [
 					'headers' => $this->createHeaders(),
 					'query' => [
-						'fields' => 'summary,worklog',
+						'startedAfter' => ($range->start->getTimestamp() - 1) * 1000,
+						'startedBefore' => ($range->end->getTimestamp() + 1) * 1000,
 					],
 				]);
 
 				$data = json_decode($response->getBody()->getContents(), FALSE, 512, JSON_THROW_ON_ERROR);
 
-				return $data->fields ?? NULL;
+				return ($data?->worklogs) ?? [];
+			} catch (Throwable $e) {
+				$logger->error(sprintf(
+					'[jira] Can not fetch work logs for the issue %s. %s',
+					$issueCode,
+					$e->getMessage()
+				));
+			}
+
+			return NULL;
+		});
+	}
+
+	private function fetchIssueTitle(string $issueCode, LoggerInterface $logger): ?string
+	{
+		return $this->hitCache('issue-title-' . $issueCode, function () use ($issueCode, $logger) {
+			try {
+				$response = $this->client->get($this->websiteUrl . '/issue/' . $issueCode, [
+					'headers' => $this->createHeaders(),
+					'query' => [
+						'fields' => 'summary',
+					],
+				]);
+
+				$data = json_decode($response->getBody()->getContents(), FALSE, 512, JSON_THROW_ON_ERROR);
+
+				return $data?->fields?->summary;
 			} catch (Throwable $e) {
 				$logger->error(sprintf(
 					'[jira] Can not fetch information about the issue %s. %s',
