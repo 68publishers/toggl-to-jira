@@ -7,17 +7,20 @@ namespace App\Client\Jira;
 use Throwable;
 use DateTimeZone;
 use DateTimeImmutable;
-use DateTimeInterface;
 use App\ValueObject\Entry;
+use App\ValueObject\Range;
 use Psr\Log\LoggerInterface;
-use App\ValueObject\SyncMode;
 use GuzzleHttp\ClientInterface;
+use App\Exception\AbortException;
 use JetBrains\PhpStorm\ArrayShape;
+use App\Client\ReadClientInterface;
 use App\Client\WriteClientInterface;
 
-final class JiraClient implements WriteClientInterface
+final class JiraClient implements WriteClientInterface, ReadClientInterface
 {
 	private readonly string $websiteUrl;
+
+	private array $runtimeCache = [];
 
 	public function __construct(
 		string $websiteUrl,
@@ -31,207 +34,186 @@ final class JiraClient implements WriteClientInterface
 	/**
 	 * @throws \Exception
 	 */
-	public function writeEntries(array $entries, SyncMode $syncMode, LoggerInterface $logger): void
+	public function listEntries(Range $range, array $issueCodes, LoggerInterface $logger): array
 	{
-		if (empty($entries)) {
-			$logger->info('[jira] Nothing to import.');
-
-			return;
+		if (empty($issueCodes)) {
+			throw new AbortException('[jira] Please provide an array of issue codes.');
 		}
 
-		$accountId = $this->fetchAccountId($logger);
+		$entries = [];
+		$accountId = $this->fetchAccountId();
 
-		if (NULL === $accountId) {
-			return;
-		}
+		foreach ($issueCodes as $issueCode) {
+			$issue = $this->fetchIssue($issueCode, $logger);
 
-		$issues = array_fill_keys(array_unique(array_map(static fn (Entry $entry): string => $entry->issue, $entries)), NULL);
-
-		foreach (array_keys($issues) as $issueCode) {
-			$issues[$issueCode] = $this->fetchIssue($issueCode, $logger);
-		}
-
-		$entriesPerIssueAndDay = [];
-
-		foreach ($entries as $entry) {
-			assert($entry instanceof Entry);
-
-			if (!isset($issues[$entry->issue])) {
-				$logger->error(sprintf(
-					'[jira] Can not import an entry %s because of missing information about the issue "%s".',
-					$entry,
-					$entry->issue
-				));
-
+			if (NULL === $issue) {
 				continue;
 			}
-			
-			$entriesPerIssueAndDay[$entry->issue][$entry->start->format('Y-m-d')][] = $entry;
+
+			foreach ($issue->worklog->worklogs as $workLog) {
+				$workLogStart = (new DateTimeImmutable($workLog->started))->setTimezone(new DateTimeZone('UTC'));
+
+				if ($workLog->author->accountId !== $accountId || $workLogStart < $range->start || $workLogStart > $range->end) {
+					continue;
+				}
+
+				$entries[] = new Entry(
+					(string) $workLog->id,
+					$issueCode,
+					'', // dunno how to parse that shit
+					$workLogStart,
+					$workLog->timeSpentSeconds
+				);
+			}
 		}
 
-		foreach ($entriesPerIssueAndDay as $issueCode => $entriesPerDay) {
-			foreach ($entriesPerDay as $day => $ent) {
-				$this->importEntriesPerDay($ent, $issueCode, $issues[$issueCode], $day, $accountId, $syncMode, $logger);
-			}
+		return $entries;
+	}
+
+	public function createEntry(Entry $entry, LoggerInterface $logger): void
+	{
+		try {
+			$issueTitle = $this->fetchIssue($entry->issue, $logger)->summary;
+
+			$this->client->post($this->websiteUrl . '/issue/' . $entry->issue . '/worklog', [
+				'headers' => $this->createHeaders(),
+				'query' => [
+					'adjustEstimate' => 'auto',
+				],
+				'body' => $this->createEntryBody($issueTitle, $entry),
+			]);
+
+			$logger->info(sprintf(
+				'[jira] Created a work log %s.',
+				$entry
+			));
+		} catch (Throwable $e) {
+			$logger->error(sprintf(
+				'[jira] Unable to create work log %s. %s',
+				$entry,
+				$e->getMessage()
+			));
 		}
 	}
 
-	/**
-	 * @throws \Exception
-	 */
-	private function importEntriesPerDay(array $entries, string $issueCode, object $issue, string $startDateString, string $accountId, SyncMode $syncMode, LoggerInterface $logger): void
+	public function updateEntry(Entry $entry, LoggerInterface $logger): void
 	{
-		$deletes = $updates = [];
-		$remainingEntries = $entries;
-		$workLogs = $issue->worklog->worklogs;
+		if (NULL === $entry->id) {
+			$logger->error(sprintf(
+				'[jira] Unable to update a work log %s. Missing ID in an entry instance.',
+				$entry
+			));
 
-		foreach ($workLogs as $workLog) {
-			$workLogStart = (new DateTimeImmutable($workLog->started))->setTimezone(new DateTimeZone('UTC'));
-			$workLogStartDate = $workLogStart->format('Y-m-d');
-
-			if ($workLogStartDate !== $startDateString || $workLog->author->accountId !== $accountId) {
-				continue;
-			}
-
-			if ($syncMode === SyncMode::OVERWRITE) {
-				$deletes[$workLog->id] = TRUE;
-
-				continue;
-			}
-
-			$workLogStartDateTime = $workLogStart->format(DateTimeInterface::ATOM);
-
-			foreach ($remainingEntries as $entryIndex => $remainingEntry) {
-				assert($remainingEntry instanceof Entry);
-				$entryStartDateTime = $remainingEntry->start->format(DateTimeInterface::ATOM);
-
-				if ($entryStartDateTime === $workLogStartDateTime) {
-					$updates[$workLog->id] = $remainingEntry;
-					unset($remainingEntries[$entryIndex]);
-
-					continue 2;
-				}
-			}
+			return;
 		}
 
-		foreach (array_keys($deletes) as $workLogId) {
-			try {
-				$this->client->delete($this->websiteUrl . '/issue/' . $issueCode . '/worklog/' . $workLogId, [
-					'headers' => $this->createHeaders(),
-				]);
+		try {
+			$issueTitle = $this->fetchIssue($entry->issue, $logger)->summary;
 
-				$logger->info(sprintf(
-					'[jira] Deleted a work log with the ID %s.',
-					$workLogId
-				));
-			} catch (Throwable $e) {
-				$logger->error(sprintf(
-					'[jira] Unable to delete a work log with the ID %s for the issue %s at %s. Aborting all operations for the issue at the date. %s',
-					$workLogId,
-					$issueCode,
-					$startDateString,
-					$e->getMessage()
-				));
+			$this->client->put($this->websiteUrl . '/issue/' . $entry->issue . '/worklog/' . $entry->id, [
+				'headers' => $this->createHeaders(),
+				'query' => [
+					'adjustEstimate' => 'auto',
+				],
+				'body' => $this->createEntryBody($issueTitle, $entry),
+			]);
 
-				return;
-			}
+			$logger->info(sprintf(
+				'[jira] Updated a work log %s with ID %s.',
+				$entry,
+				$entry->id
+			));
+		} catch (Throwable $e) {
+			$logger->error(sprintf(
+				'[jira] Unable to update a work log %s with ID %s. %s',
+				$entry,
+				$entry->id,
+				$e->getMessage()
+			));
+		}
+	}
+
+	public function deleteEntry(Entry $entry, LoggerInterface $logger): void
+	{
+		if (NULL === $entry->id) {
+			$logger->error(sprintf(
+				'[jira] Unable to delete a work log %s. Missing ID in an entry instance.',
+				$entry
+			));
+
+			return;
 		}
 
-		foreach ($updates as $workLogId => $entry) {
-			try {
-				$this->client->put($this->websiteUrl . '/issue/' . $issueCode . '/worklog/' . $workLogId, [
-					'headers' => $this->createHeaders(),
-					'query' => [
-						'adjustEstimate' => 'auto',
-					],
-					'body' => $this->createEntryBody($issue->summary, $entry),
-				]);
+		try {
+			$this->client->delete($this->websiteUrl . '/issue/' . $entry->issue . '/worklog/' . $entry->id, [
+				'headers' => $this->createHeaders(),
+			]);
 
-				$logger->info(sprintf(
-					'[jira] Updated a work log %s an entry %s.',
-					$workLogId,
-					$entry
-				));
-			} catch (Throwable $e) {
-				$logger->error(sprintf(
-					'[jira] Unable to update a work log %s with an entry %s. %s',
-					$workLogId,
-					$entry,
-					$e->getMessage()
-				));
-
-				return;
-			}
-		}
-
-		foreach ($remainingEntries as $entry) {
-			assert($entry instanceof Entry);
-
-			try {
-				$this->client->post($this->websiteUrl . '/issue/' . $issueCode . '/worklog', [
-					'headers' => $this->createHeaders(),
-					'query' => [
-						'adjustEstimate' => 'auto',
-					],
-					'body' => $this->createEntryBody($issue->summary, $entry),
-				]);
-
-				$logger->info(sprintf(
-					'[jira] Created a work log for an entry %s.',
-					$entry
-				));
-			} catch (Throwable $e) {
-				$logger->error(sprintf(
-					'[jira] Unable to create work log for an entry %s. %s',
-					$entry,
-					$e->getMessage()
-				));
-
-				return;
-			}
+			$logger->info(sprintf(
+				'[jira] Deleted a work log with the ID %s.',
+				$entry->id
+			));
+		} catch (Throwable $e) {
+			$logger->error(sprintf(
+				'[jira] Unable to delete a work log %s with the ID %s. Aborting all operations for the issue at the date. %s',
+				$entry,
+				$entry->id,
+				$e->getMessage()
+			));
 		}
 	}
 
 	private function fetchIssue(string $issueCode, LoggerInterface $logger): ?object
 	{
-		try {
-			$response = $this->client->get($this->websiteUrl . '/issue/' . $issueCode, [
-				'headers' => $this->createHeaders(),
-				'query' => [
-					'fields' => 'summary,worklog',
-				],
-			]);
+		return $this->hitCache('issue-' . $issueCode, function () use ($issueCode, $logger) {
+			try {
+				$response = $this->client->get($this->websiteUrl . '/issue/' . $issueCode, [
+					'headers' => $this->createHeaders(),
+					'query' => [
+						'fields' => 'summary,worklog',
+					],
+				]);
 
-			$data = json_decode($response->getBody()->getContents(), FALSE, 512, JSON_THROW_ON_ERROR);
+				$data = json_decode($response->getBody()->getContents(), FALSE, 512, JSON_THROW_ON_ERROR);
 
-			return $data->fields ?? NULL;
-		} catch (Throwable $e) {
-			$logger->error(sprintf(
-				'[jira] Can not fetch information about the issue %s. %s',
-				$issueCode,
-				$e->getMessage()
-			));
-		}
+				return $data->fields ?? NULL;
+			} catch (Throwable $e) {
+				$logger->error(sprintf(
+					'[jira] Can not fetch information about the issue %s. %s',
+					$issueCode,
+					$e->getMessage()
+				));
+			}
 
-		return NULL;
+			return NULL;
+		});
 	}
 
-	private function fetchAccountId(LoggerInterface $logger): ?string
+	/**
+	 * @throws \App\Exception\AbortException
+	 */
+	private function fetchAccountId(): string
 	{
-		try {
-			$response = $this->client->get($this->websiteUrl . '/myself', [
-				'headers' => $this->createHeaders(),
-			]);
+		return $this->hitCache('account-id', function () {
+			try {
+				$response = $this->client->get($this->websiteUrl . '/myself', [
+					'headers' => $this->createHeaders(),
+				]);
 
-			$data = json_decode($response->getBody()->getContents(), FALSE, 512, JSON_THROW_ON_ERROR);
-		} catch (Throwable $e) {
-			$logger->error(sprintf(
-				'[jira] Can not fetch information about the current user. %s',
-				$e->getMessage()
-			));
-		}
+				$data = json_decode($response->getBody()->getContents(), FALSE, 512, JSON_THROW_ON_ERROR);
+			} catch (Throwable $e) {
+				throw new AbortException(sprintf(
+					'[jira] Can not fetch information about the current user. %s',
+					$e->getMessage()
+				));
+			}
 
-		return isset($data, $data->accountId) ? $data->accountId : NULL;
+			if (!isset($data->accountId)) {
+				throw new AbortException('[jira] Can not fetch information about the current user.');
+			}
+
+			return $data->accountId;
+		});
 	}
 
 	/**
@@ -239,8 +221,27 @@ final class JiraClient implements WriteClientInterface
 	 */
 	private function createEntryBody(string $issueTitle, Entry $entry): string
 	{
-		$comment = trim(
-			str_starts_with($entry->description, $issueTitle) ? substr($entry->description, strlen($issueTitle)) : $entry->description
+		$lines = array_filter(
+			array_map(
+				static fn (string $line): string => trim(
+					str_starts_with($line, $issueTitle) ? substr($line, strlen($issueTitle)) : $line
+				),
+				explode("\n", $entry->description)
+			),
+			static fn (string $line): bool => !empty($line)
+		);
+
+		$content = array_map(
+			static fn (string $line): array => [
+				'type' => 'paragraph',
+				'content' => [
+					[
+						'text' => $line,
+						'type' => 'text',
+					],
+				],
+			],
+			empty($lines) ? [''] : $lines
 		);
 
 		return json_encode([
@@ -249,17 +250,7 @@ final class JiraClient implements WriteClientInterface
 			'comment' => [
 				'type' => 'doc',
 				'version' => 1,
-				'content' => [
-					[
-						'type' => 'paragraph',
-						'content' => [
-							[
-								'text' => $comment,
-								'type' => 'text',
-							],
-						],
-					],
-				],
+				'content' => $content,
 			],
 		], JSON_THROW_ON_ERROR);
 	}
@@ -271,5 +262,14 @@ final class JiraClient implements WriteClientInterface
 			'Accept' => 'application/json',
 			'Content-Type' => 'application/json',
 		];
+	}
+
+	private function hitCache(string $key, callable $cb)
+	{
+		if (array_key_exists($key, $this->runtimeCache)) {
+			return $this->runtimeCache[$key];
+		}
+
+		return $this->runtimeCache[$key] = $cb();
 	}
 }

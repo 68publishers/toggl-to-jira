@@ -9,5 +9,8 @@ use Psr\Log\LoggerInterface;
 
 interface ReadClientInterface
 {
-	public function listEntries(Range $range, LoggerInterface $logger): array;
+	/**
+	 * @throws \App\Exception\AbortException
+	 */
+	public function listEntries(Range $range, array $issueCodes, LoggerInterface $logger): array;
 }

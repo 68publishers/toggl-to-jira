@@ -15,6 +15,7 @@ services:
 		type: App\Synchronization\Synchronizer
 		arguments:
 			sourceReader: @client.toggl
+			destinationReader: @client.jira
 			destinationWriter: @client.jira
 
 	http_client: GuzzleHttp\Client
@@ -32,3 +33,5 @@ services:
 			username: ::env(JIRA_USERNAME)
 			apiToken: ::env(JIRA_API_TOKEN)
 			websiteUrl: ::env(JIRA_WEBSITE_URL)
+
+	diff_generator: App\Synchronization\DiffGenerator

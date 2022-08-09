@@ -7,5 +7,5 @@ namespace App\ValueObject;
 enum SyncMode
 {
 	case DEFAULT;
-	case OVERWRITE;
+	case GROUP_BY_DAY;
 }

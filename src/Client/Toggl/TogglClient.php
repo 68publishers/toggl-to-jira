@@ -23,7 +23,7 @@ final class TogglClient implements ReadClientInterface
 	) {
 	}
 
-	public function listEntries(Range $range, LoggerInterface $logger): array
+	public function listEntries(Range $range, array $issueCodes, LoggerInterface $logger): array
 	{
 		// @todo Toggl API v9 doesn't accept DateTimes with a time, currently the only date can be passed.
 		$startDate = $range->start->setTime(0, 0);
@@ -53,26 +53,32 @@ final class TogglClient implements ReadClientInterface
 
 		return array_filter(
 			array_map(
-				function (object $entry) use ($logger): ?Entry {
-					return $this->createEntry($entry, $logger);
+				function (object $entry) use ($issueCodes, $logger): ?Entry {
+					return $this->createEntry($entry, $issueCodes, $logger);
 				},
 				$documents
 			)
 		);
 	}
 
-	private function createEntry(object $entry, LoggerInterface $logger): ?Entry
+	private function createEntry(object $entry, array $issueCodes, LoggerInterface $logger): ?Entry
 	{
 		$parsed = FALSE !== (bool) preg_match('/^(?<ISSUE>[a-zA-Z]+-\d+)( +)?(?<DESCRIPTION>.*)?$/', $entry->description, $m);
 
 		if (!$parsed || !isset($m['ISSUE'], $m['DESCRIPTION'])) {
-			$logger->error(sprintf(
+			$logger->warning(sprintf(
 				'[toggl] Can not synchronize entry "%s" from %s - %s. The entry description is not properly formatted.',
 				$entry->description,
 				$entry->start,
 				$entry->stop ?? '?'
 			));
 
+			return NULL;
+		}
+
+		$issueCode = trim($m['ISSUE']);
+
+		if (!empty($issueCodes) && !in_array($issueCode, $issueCodes, TRUE)) {
 			return NULL;
 		}
 
@@ -95,10 +101,10 @@ final class TogglClient implements ReadClientInterface
 
 		try {
 			return new Entry(
-				trim($m['ISSUE']),
+				(string) $entry->id,
+				$issueCode,
 				trim($m['DESCRIPTION']),
-				new DateTimeImmutable($entry->start, new DateTimeZone('UTC')),
-				new DateTimeImmutable($entry->stop, new DateTimeZone('UTC')),
+				(new DateTimeImmutable($entry->start))->setTimezone(new DateTimeZone('UTC')),
 				$entry->duration
 			);
 		} catch (Throwable $e) {

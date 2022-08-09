@@ -36,11 +36,14 @@ $ ./installer
 Synchronization is started with the following command
 
 ```sh
-$ docker exec -it t2j-app bin/console sync -vv --start <START_DATE> --end <END_DATE> [--overwrite]
+$ docker exec -it t2j-app bin/console sync -vv --start <START_DATE> --end <END_DATE> [--group-by-day] [--rounding <ROUNDING>]
 ```
 
 Options `start` and `end` accepts datetime strings (absolute or relative).
-The `overwrite` option tells the application to remove already existing entries in JIRA.
+
+The `group-by-day` option tells the application to group all daily entries into one.
+
+The `rounding` option accepts an integer value in the range [2-60]. All entries will be rounded to up the minutes if the option is used.
 
 ## Description format
 
