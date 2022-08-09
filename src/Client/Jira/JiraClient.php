@@ -183,7 +183,7 @@ final class JiraClient implements WriteClientInterface, ReadClientInterface
 				));
 			}
 
-			return NULL;
+			return [];
 		});
 	}
 
