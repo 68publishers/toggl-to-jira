@@ -6,11 +6,11 @@ namespace App\Synchronization;
 
 use DateTimeInterface;
 use App\ValueObject\Entry;
-use App\ValueObject\SyncMode;
+use App\ValueObject\GroupMode;
 
 final class DiffGenerator implements DiffGeneratorInterface
 {
-	public function diff(array $sourceEntries, array $destinationEntries, SyncMode $mode): Diff
+	public function diff(array $sourceEntries, array $destinationEntries, GroupMode $mode): Diff
 	{
 		$sourceEntriesByDayAndIssue = $destinationEntriesByDayAndIssue = [];
 
@@ -55,14 +55,14 @@ final class DiffGenerator implements DiffGeneratorInterface
 		return $diff;
 	}
 
-	private function diffByDayAndIssue(array $sourceEntries, array $destinationEntries, SyncMode $mode): Diff
+	private function diffByDayAndIssue(array $sourceEntries, array $destinationEntries, GroupMode $mode): Diff
 	{
 		$deletes = $updates = [];
 
 		usort($sourceEntries, static fn (Entry $a, Entry $b): int => $a->start <=> $b->start);
 		usort($destinationEntries, static fn (Entry $a, Entry $b): int => $a->start <=> $b->start);
 
-		if (SyncMode::GROUP_BY_DAY === $mode) {
+		if (GroupMode::GROUP_BY_DAY === $mode) {
 			$sourceEntries = $this->groupSourceEntries($sourceEntries);
 		}
 

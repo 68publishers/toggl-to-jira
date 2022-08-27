@@ -6,6 +6,8 @@ namespace App\ValueObject;
 
 use DateTimeImmutable;
 use DateTimeInterface;
+use Nette\Utils\Strings;
+use App\Helper\DurationFormatter;
 
 final class Entry
 {
@@ -46,24 +48,34 @@ final class Entry
 	/**
 	 * @throws \Exception
 	 */
-	public function __toString(): string
+	public function toString(?int $descriptionMaxLength = NULL): string
 	{
 		$end = $this->start->modify(sprintf(
 			'+%d seconds',
 			$this->duration
 		));
 
-		$interval = $this->start->diff($end);
-		$hours = $interval->h;
-		$minutes = $interval->i;
+		$description = str_replace("\n", ' \n ', $this->description);
+
+		if (NULL !== $descriptionMaxLength) {
+			$description = Strings::truncate($description, $descriptionMaxLength);
+		}
 
 		return sprintf(
 			'"%s %s" [%s - %s, %s]',
 			$this->issue,
-			str_replace("\n", ' \n ', $this->description),
+			$description,
 			$this->start->format(DateTimeInterface::ATOM),
 			$end->format(DateTimeInterface::ATOM),
-			0 < $hours ? ($hours . 'h ' . $minutes . 'm') : ($minutes . 'm')
+			DurationFormatter::format($this->duration)
 		);
+	}
+
+	/**
+	 * @throws \Exception
+	 */
+	public function __toString(): string
+	{
+		return $this->toString();
 	}
 }

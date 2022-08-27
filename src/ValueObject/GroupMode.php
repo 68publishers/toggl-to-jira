@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\ValueObject;
 
-enum SyncMode
+enum GroupMode
 {
 	case DEFAULT;
 	case GROUP_BY_DAY;

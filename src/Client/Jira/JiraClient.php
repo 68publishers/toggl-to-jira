@@ -54,20 +54,27 @@ final class JiraClient implements WriteClientInterface, ReadClientInterface
 					continue;
 				}
 
-				$entries[] = new Entry(
+				$issueTitle = (string) $this->fetchIssueTitle($issueCode, $logger);
+
+				$entries[] = $entry = new Entry(
 					(string) $workLog->id,
 					$issueCode,
-					'', // dunno how to parse that shit
+					$issueTitle . ' {unknown description}', // dunno how to parse that shit
 					$workLogStart,
 					$workLog->timeSpentSeconds
 				);
+
+				$logger->info(sprintf(
+					'[jira] Entry %s found.',
+					$entry
+				));
 			}
 		}
 
 		return $entries;
 	}
 
-	public function createEntry(Entry $entry, LoggerInterface $logger): void
+	public function createEntry(Entry $entry, LoggerInterface $logger): bool
 	{
 		try {
 			$issueTitle = (string) $this->fetchIssueTitle($entry->issue, $logger);
@@ -84,16 +91,20 @@ final class JiraClient implements WriteClientInterface, ReadClientInterface
 				'[jira] Created a work log %s.',
 				$entry
 			));
+
+			return TRUE;
 		} catch (Throwable $e) {
 			$logger->error(sprintf(
 				'[jira] Unable to create work log %s. %s',
 				$entry,
 				$e->getMessage()
 			));
+
+			return FALSE;
 		}
 	}
 
-	public function updateEntry(Entry $entry, LoggerInterface $logger): void
+	public function updateEntry(Entry $entry, LoggerInterface $logger): bool
 	{
 		if (NULL === $entry->id) {
 			$logger->error(sprintf(
@@ -101,7 +112,7 @@ final class JiraClient implements WriteClientInterface, ReadClientInterface
 				$entry
 			));
 
-			return;
+			return FALSE;
 		}
 
 		try {
@@ -120,6 +131,8 @@ final class JiraClient implements WriteClientInterface, ReadClientInterface
 				$entry,
 				$entry->id
 			));
+
+			return TRUE;
 		} catch (Throwable $e) {
 			$logger->error(sprintf(
 				'[jira] Unable to update a work log %s with ID %s. %s',
@@ -127,10 +140,12 @@ final class JiraClient implements WriteClientInterface, ReadClientInterface
 				$entry->id,
 				$e->getMessage()
 			));
+
+			return FALSE;
 		}
 	}
 
-	public function deleteEntry(Entry $entry, LoggerInterface $logger): void
+	public function deleteEntry(Entry $entry, LoggerInterface $logger): bool
 	{
 		if (NULL === $entry->id) {
 			$logger->error(sprintf(
@@ -138,7 +153,7 @@ final class JiraClient implements WriteClientInterface, ReadClientInterface
 				$entry
 			));
 
-			return;
+			return FALSE;
 		}
 
 		try {
@@ -150,6 +165,8 @@ final class JiraClient implements WriteClientInterface, ReadClientInterface
 				'[jira] Deleted a work log with the ID %s.',
 				$entry->id
 			));
+
+			return TRUE;
 		} catch (Throwable $e) {
 			$logger->error(sprintf(
 				'[jira] Unable to delete a work log %s with the ID %s. Aborting all operations for the issue at the date. %s',
@@ -157,6 +174,8 @@ final class JiraClient implements WriteClientInterface, ReadClientInterface
 				$entry->id,
 				$e->getMessage()
 			));
+
+			return FALSE;
 		}
 	}
 

@@ -36,14 +36,20 @@ $ ./installer
 Synchronization is started with the following command
 
 ```sh
-$ docker exec -it t2j-app bin/console sync -vv --start <START_DATE> --end <END_DATE> [--group-by-day] [--rounding <ROUNDING>]
+$ docker exec -it t2j-app bin/console sync --start <START_DATE> --end <END_DATE> [--group-by-day] [--rounding <ROUNDING>] [--issue <ISSUE_CODE>] [--dump-only] [--no-interaction]
 ```
 
 Options `start` and `end` accepts datetime strings (absolute or relative).
 
-The `group-by-day` option tells the application to group all daily entries into one.
+Option `--group-by-day` tells the application to group all daily entries into one.
 
-The `rounding` option accepts an integer value in the range [2-60]. All entries will be rounded to up the minutes if the option is used.
+Option `--rounding` accepts an integer value in the range [2-60]. All entries will be rounded to up the minutes if the option is used.
+
+Option `--issue` accepts an issue code to be synchronized. Multiple values can be declared. If the option is omitted then all entries are synchronized.
+
+Option `--dump-only` displays only change set and summary tables, but does not synchronize anything.
+
+If you schedule the command into CRONTAB, use the `--no-interaction` option (or the shortcut `-n`) so that the console does not ask if you want to synchronize the entries.
 
 ## Description format
 

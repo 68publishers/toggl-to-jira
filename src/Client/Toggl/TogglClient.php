@@ -92,21 +92,21 @@ final class TogglClient implements ReadClientInterface
 			return NULL;
 		}
 
-		$logger->info(sprintf(
-			'[toggl] Entry "%s" from %s - %s found.',
-			$entry->description,
-			$entry->start,
-			$entry->stop
-		));
-
 		try {
-			return new Entry(
+			$entry = new Entry(
 				(string) $entry->id,
 				$issueCode,
 				trim($m['DESCRIPTION']),
 				(new DateTimeImmutable($entry->start))->setTimezone(new DateTimeZone('UTC')),
 				$entry->duration
 			);
+
+			$logger->info(sprintf(
+				'[toggl] Entry %s found.',
+				$entry
+			));
+
+			return $entry;
 		} catch (Throwable $e) {
 			$logger->error(sprintf(
 				'[toggl] Failed to create en entry from "%s". %s',

@@ -24,53 +24,86 @@ final class Synchronizer implements SynchronizerInterface
 	/**
 	 * @throws \Exception
 	 */
-	public function sync(Options $options, ?LoggerInterface $logger = NULL): void
+	public function generateDataSet(Options $options, ?LoggerInterface $logger = NULL): DataSet
 	{
 		$logger = $logger ?? new NullLogger();
 
 		try {
-			$this->doSync($options, $logger);
+			$dataSet = $this->createDataSet($options, $logger);
 		} catch (AbortException $e) {
 			$logger->error($e->getMessage());
+		}
+
+		return $dataSet ?? DataSet::empty();
+	}
+
+	/**
+	 * @throws \Exception
+	 */
+	public function sync(DataSet $dataSet, ?LoggerInterface $logger = NULL): bool
+	{
+		$logger = $logger ?? new NullLogger();
+
+		try {
+			if (!$dataSet->diff->empty()) {
+				return $this->doSync($dataSet->diff, $logger);
+			}
+
+			return TRUE;
+		} catch (AbortException $e) {
+			$logger->error($e->getMessage());
+
+			return FALSE;
 		}
 	}
 
 	/**
 	 * @throws \Exception
 	 */
-	private function doSync(Options $options, LoggerInterface $logger): void
+	private function createDataSet(Options $options, LoggerInterface $logger): DataSet
 	{
-		$sourceEntries = $this->sourceReader->listEntries($options->range, [], $logger);
+		$sourceEntries = $this->sourceReader->listEntries($options->range, $options->issueCodes, $logger);
 
 		if (empty($sourceEntries)) {
 			$logger->info('Nothing to synchronize.');
 
-			return;
+			return DataSet::empty();
 		}
 
-		$issuesCodes = array_unique(array_map(static fn (Entry $entry): string => $entry->issue, $sourceEntries));
+		$issuesCodes = !empty($options->issueCodes) ? $options->issueCodes : array_unique(array_map(static fn (Entry $entry): string => $entry->issue, $sourceEntries));
 		$destinationEntries = $this->destinationReader->listEntries($options->range, $issuesCodes, $logger);
 
-		$diff = $this->diffGenerator->diff($sourceEntries, $destinationEntries, $options->syncMode);
+		$diff = $this->diffGenerator->diff($sourceEntries, $destinationEntries, $options->groupMode);
+
+		if (NULL !== $options->rounding) {
+			$diff = $diff->withRounding($options->rounding);
+		}
+
+		return new DataSet($sourceEntries, $destinationEntries, $diff);
+	}
+
+	private function doSync(Diff $diff, LoggerInterface $logger): bool
+	{
+		$ok = TRUE;
 
 		foreach ($diff->deletes as $entry) {
-			$this->destinationWriter->deleteEntry($entry, $logger);
+			if (!$this->destinationWriter->deleteEntry($entry, $logger)) {
+				$ok = FALSE;
+			}
 		}
 
 		foreach ($diff->updates as $entry) {
-			if (NULL !== $options->rounding) {
-				$entry = $entry->withRoundedDuration($options->rounding);
+			if (!$this->destinationWriter->updateEntry($entry, $logger)) {
+				$ok = FALSE;
 			}
-
-			$this->destinationWriter->updateEntry($entry, $logger);
 		}
 
 		foreach ($diff->inserts as $entry) {
-			if (NULL !== $options->rounding) {
-				$entry = $entry->withRoundedDuration($options->rounding);
+			if (!$this->destinationWriter->createEntry($entry, $logger)) {
+				$ok = FALSE;
 			}
-
-			$this->destinationWriter->createEntry($entry, $logger);
 		}
+
+		return $ok;
 	}
 }
