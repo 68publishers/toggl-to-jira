@@ -274,7 +274,7 @@ final class JiraClient implements WriteClientInterface, ReadClientInterface
 			'comment' => [
 				'type' => 'doc',
 				'version' => 1,
-				'content' => $content,
+				'content' => array_values($content),
 			],
 		], JSON_THROW_ON_ERROR);
 	}
