@@ -8,8 +8,9 @@ Please follow these instructions to get a local copy and set it up.
 
 ### Environment
 
-- git
-- docker & docker-compose
+- Git
+- Docker
+- Make
 
 ### Installation
 
@@ -18,7 +19,7 @@ Please follow these instructions to get a local copy and set it up.
 ```sh
 $ git clone https://github.com/68publishers/toggl-to-jira.git
 $ cd toggl-to-jira
-$ ./installer
+$ make
 ```
 
 2. Open the `.env` file and set up your credentials
