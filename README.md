@@ -54,7 +54,7 @@ $ make
 Synchronization is started with
 
 ```sh
-$ docker exec -it t2j-app bin/console sync --start <START_DATE> --end <END_DATE> [--group-by-day] [--rounding <ROUNDING>] [--issue <ISSUE_CODE>] [--dump-only] [--no-interaction]
+$ docker exec -it t2j-app bin/console sync --start <START_DATE> --end <END_DATE> [--group-by-day] [--rounding <ROUNDING>] [--issue <ISSUE_CODE>] [--dry-run] [--no-interaction]
 ```
 
 ## Available Options
@@ -66,8 +66,8 @@ $ docker exec -it t2j-app bin/console sync --start <START_DATE> --end <END_DATE>
 | `--group-by-day`         | Boolean | Group all daily entries into one (per issue)                                                                               |
 | `--rounding`             | Integer | All entries will be rounded to up the given minutes [2-60]                                                                 |
 | `--issue`                | String  | Issue code to be synchronized. Multiple values can be declared. If the option is omitted then all entries are synchronized |
-| `--dump-only`            | Boolean | Displays only change set and summary tables but does not synchronize anything                                              |
-| `-n`, `--no-interaction` | Boolean | Console does not ask if you want to synchronize the entries, suitable for scheduled commands, etc.                         |
+| `--dry-run`              | Boolean | Displays only change set and summary tables but does not synchronize anything                                              |
+| `-n`, `--no-interaction` | Boolean | Do not ask any interactive question, suitable for scheduled commands, etc.                         |
 
 ## Description format
 

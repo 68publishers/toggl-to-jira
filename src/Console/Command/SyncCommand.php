@@ -38,7 +38,7 @@ final class SyncCommand extends Command
 			->addOption('group-by-day', NULL, InputOption::VALUE_NONE, 'Enables "group by day" synchronization mode')
 			->addOption('rounding', NULL, InputOption::VALUE_OPTIONAL, 'Rounds entries to up the minutes. The value must be an integer in the range [2-60]')
 			->addOption('issue', NULL, InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED, 'One or more issue codes. Only entries with the codes will be processed.')
-			->addOption('dump-only', NULL, InputOption::VALUE_NONE, 'Dumps only change set without persisting it in the JIRA.');
+			->addOption('dry-run', NULL, InputOption::VALUE_NONE, 'Dumps only change set without persisting it in the JIRA.');
 	}
 
 	/**
@@ -65,7 +65,7 @@ final class SyncCommand extends Command
 
 		$dumper->dump($dataSet);
 
-		if ($input->getOption('dump-only') || $dataSet->diff->empty()) {
+		if ($input->getOption('dry-run') || $dataSet->diff->empty()) {
 			return Command::SUCCESS;
 		}
 
