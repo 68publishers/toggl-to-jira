@@ -2,12 +2,14 @@
 
 <p align="center">Console application for synchronizing time entries from Toggl into Jira.</p>
 
+![Toggl to Jira](docs/images/sync.png)
+
 ## Usage
 
-To synchronize your Toggl entries into Jira simple run
+To synchronize your Toggl entries into Jira simple run:
 
 ```bash
-$ docker run \
+$ docker run --rm \
     -e TOGGL_API_TOKEN=<toggl_api_token> \
     -e JIRA_API_TOKEN=<jira_api_token> \
     -e JIRA_WEBSITE_URL=<jira_website_url> \
@@ -51,7 +53,7 @@ $ make
 
 ## Synchronization
 
-Synchronization is started with
+Synchronization is started with:
 
 ```sh
 $ docker exec -it t2j-app bin/console sync --start <START_DATE> --end <END_DATE> [--group-by-day] [--rounding <ROUNDING>] [--issue <ISSUE_CODE>] [--dry-run] [--no-interaction]
@@ -67,14 +69,14 @@ $ docker exec -it t2j-app bin/console sync --start <START_DATE> --end <END_DATE>
 | `--rounding`             | Integer | All entries will be rounded to up the given minutes [2-60]                                                                 |
 | `--issue`                | String  | Issue code to be synchronized. Multiple values can be declared. If the option is omitted then all entries are synchronized |
 | `--dry-run`              | Boolean | Displays only change set and summary tables but does not synchronize anything                                              |
-| `-n`, `--no-interaction` | Boolean | Do not ask any interactive question, suitable for scheduled commands, etc.                         |
+| `-n`, `--no-interaction` | Boolean | Do not ask any interactive question, suitable for scheduled commands, etc.                                                 |
 
 ## Description format
 
-Descriptions of time entries in Toggl must follow the following pattern
+Descriptions of time entries in Toggl must follow the following pattern:
 
 ```
-<IssueCode> [<IssueName>] [<OptionalComment>]
+<IssueCode> [<IssueName>] [<Comment>]
 ```
 
 For example, if the issue in Jira has code `PROJ-123` and the name of the issue is `UX improvements` then the following examples are acceptable:
@@ -86,7 +88,10 @@ For example, if the issue in Jira has code `PROJ-123` and the name of the issue 
 
 ## Limitations
 
-Depending on the range of the synchronization interval (start/end), you may run into the limits of one of the APIs. Therefore we recommend running synchronization e.g. every day/sprint/month, etc.
+Depending on the range of the synchronization interval (start/end), you may run into the limits of one of the APIs. Therefore, we recommend running synchronization e.g. every day/sprint/month, etc.
+
+## Featured
+See the [How to Sync Toggl Entries to Jira](https://advanced-developer.medium.com/how-to-sync-toggl-entries-to-jira-7184fd451b40) article on Medium.
 
 ## License
 
