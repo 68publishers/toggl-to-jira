@@ -30,7 +30,7 @@ build:
 	rm -rf var/log/*
 	docker build -f ./docker/prod/Dockerfile . -t 68publishers/toggl-to-jira:latest
 
-build-push:
+push:
 	docker push 68publishers/toggl-to-jira:latest
 
 rebuild:
