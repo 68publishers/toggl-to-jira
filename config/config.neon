@@ -3,7 +3,7 @@ services:
 		type: Symfony\Component\Console\Application
 		arguments:
 			name: '68publishers/toggl-to-jira'
-			version: dev
+			version: 1.0.0
 		setup:
 			- add(@console.command.sync)
 
