@@ -6,8 +6,12 @@ namespace App\Synchronization;
 
 use App\ValueObject\Entry;
 use App\ValueObject\GroupMode;
+use App\ValueObject\Rounding;
+use App\ValueObject\SyncMode;
 use DateTimeImmutable;
 use DateTimeInterface;
+use Exception;
+use function array_map;
 use function array_unique;
 use function assert;
 use function count;
@@ -16,7 +20,13 @@ use function usort;
 
 final class DiffGenerator implements DiffGeneratorInterface
 {
-    public function diff(array $sourceEntries, array $destinationEntries, GroupMode $mode): Diff
+    /**
+     * @param array<Entry> $sourceEntries
+     * @param array<Entry> $destinationEntries
+     *
+     * @throws Exception
+     */
+    public function diff(array $sourceEntries, array $destinationEntries, GroupMode $groupMode, SyncMode $syncMode, ?Rounding $rounding = null): Diff
     {
         $sourceEntriesByDayAndIssue = $destinationEntriesByDayAndIssue = [];
 
@@ -30,14 +40,14 @@ final class DiffGenerator implements DiffGeneratorInterface
             $destinationEntriesByDayAndIssue[$entry->issue][$day][] = $entry;
         }
 
-        $diff = new Diff([], [], []);
+        $diff = new Diff([], [], [], []);
 
         foreach ($sourceEntriesByDayAndIssue as $day => $sourceEntriesByIssue) {
             foreach ($sourceEntriesByIssue as $issue => $sEntries) {
                 $exists =  isset($destinationEntriesByDayAndIssue[$day][$issue]);
 
                 $diff = $diff->merge(
-                    $this->diffByDayAndIssue($sEntries, $exists ? $destinationEntriesByDayAndIssue[$day][$issue] : [], $mode),
+                    $this->diffByDayAndIssue($sEntries, $exists ? $destinationEntriesByDayAndIssue[$day][$issue] : [], $groupMode, $syncMode, $rounding),
                 );
 
                 unset($sourceEntriesByDayAndIssue[$day][$issue]);
@@ -53,7 +63,7 @@ final class DiffGenerator implements DiffGeneratorInterface
                 $exists =  isset($sourceEntriesByDayAndIssue[$day][$issue]);
 
                 $diff = $diff->merge(
-                    $this->diffByDayAndIssue($exists ? $sourceEntriesByDayAndIssue[$day][$issue] : [], $dEntries, $mode),
+                    $this->diffByDayAndIssue($exists ? $sourceEntriesByDayAndIssue[$day][$issue] : [], $dEntries, $groupMode, $syncMode, $rounding),
                 );
             }
         }
@@ -64,17 +74,28 @@ final class DiffGenerator implements DiffGeneratorInterface
     /**
      * @param array<Entry> $sourceEntries
      * @param array<Entry> $destinationEntries
+     *
+     * @throws Exception
      */
-    private function diffByDayAndIssue(array $sourceEntries, array $destinationEntries, GroupMode $mode): Diff
+    private function diffByDayAndIssue(array $sourceEntries, array $destinationEntries, GroupMode $groupMode, SyncMode $syncMode, ?Rounding $rounding): Diff
     {
-        $deletes = $updates = [];
+        $deletes = $updates = $intersections = [];
 
         usort($sourceEntries, static fn (Entry $a, Entry $b): int => $a->start <=> $b->start);
-        usort($destinationEntries, static fn (Entry $a, Entry $b): int => $a->start <=> $b->start);
 
-        if (GroupMode::GROUP_BY_DAY === $mode) {
+        if (GroupMode::GROUP_BY_DAY === $groupMode) {
             $sourceEntries = $this->groupSourceEntries($sourceEntries);
         }
+
+        if (null !== $rounding) {
+            $sourceEntries = $this->roundEntries($sourceEntries, $rounding);
+        }
+
+        if (SyncMode::APPEND === $syncMode) {
+            return new Diff($sourceEntries, [], [], $destinationEntries);
+        }
+
+        usort($destinationEntries, static fn (Entry $a, Entry $b): int => $a->start <=> $b->start);
 
         foreach ($destinationEntries as $destinationEntry) {
             assert($destinationEntry instanceof Entry);
@@ -86,7 +107,12 @@ final class DiffGenerator implements DiffGeneratorInterface
                 $sourceEntryStartDateTime = $sourceEntry->start->format(DateTimeInterface::ATOM);
 
                 if ($sourceEntryStartDateTime === $destinationEntryStartDateTime) {
-                    $updates[] = $sourceEntry->withId($destinationEntry->id);
+                    if ($sourceEntry->duration === $destinationEntry->duration) {
+                        $intersections[] = $sourceEntry->withId($destinationEntry->id);
+                    } else {
+                        $updates[] = $sourceEntry->withId($destinationEntry->id);
+                    }
+
                     unset($sourceEntries[$entryIndex]);
 
                     continue 2;
@@ -96,7 +122,7 @@ final class DiffGenerator implements DiffGeneratorInterface
             $deletes[] = $destinationEntry;
         }
 
-        return new Diff($sourceEntries, $updates, $deletes);
+        return new Diff($sourceEntries, $updates, $deletes, $intersections);
     }
 
     /**
@@ -132,5 +158,16 @@ final class DiffGenerator implements DiffGeneratorInterface
         assert($start instanceof DateTimeImmutable);
 
         return [new Entry(null, $issue, implode("\n", array_unique($descriptions)), $start, $duration)];
+    }
+
+    /**
+     * @param array<Entry> $entries
+     *
+     * @return array<Entry>
+     * @throws Exception
+     */
+    private function roundEntries(array $entries, Rounding $rounding): array
+    {
+        return array_map(static fn (Entry $entry): Entry => $entry->withRoundedDuration($rounding), $entries);
     }
 }

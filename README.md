@@ -61,15 +61,16 @@ $ docker exec -it t2j-app bin/console sync --start <START_DATE> --end <END_DATE>
 
 ## Available Options
 
-| Option                   | Type    | Description                                                                                                                |
-|--------------------------|---------|----------------------------------------------------------------------------------------------------------------------------|
-| `--start`                | String  | Accepts datetime strings - absolute or relative, default: `yesterday`                                                      |
-| `--end`                  | String  | Accepts datetime strings - absolute or relative, default: `yesterday`                                                      |
-| `--group-by-day`         | Boolean | Group all daily entries into one (per issue)                                                                               |
-| `--rounding`             | Integer | All entries will be rounded to up the given minutes [2-60]                                                                 |
-| `--issue`                | String  | Issue code to be synchronized. Multiple values can be declared. If the option is omitted then all entries are synchronized |
-| `--dry-run`              | Boolean | Displays only change set and summary tables but does not synchronize anything                                              |
-| `-n`, `--no-interaction` | Boolean | Do not ask any interactive question, suitable for scheduled commands, etc.                                                 |
+| Option                   | Type    | Description                                                                                                                     |
+|--------------------------|---------|---------------------------------------------------------------------------------------------------------------------------------|
+| `--start`                | String  | Accepts datetime strings - absolute or relative, default: `yesterday`                                                           |
+| `--end`                  | String  | Accepts datetime strings - absolute or relative, default: `yesterday`                                                           |
+| `--group-by-day`         | Boolean | Group all daily entries into one (per issue)                                                                                    |
+| `--append`               | Boolean | All entries will be added without creating a diff. Will cause duplicates if the command is run multiple times for the same day  |
+| `--rounding`             | Integer | All entries will be rounded to up the given minutes [2-60]                                                                      |
+| `--issue`                | String  | Issue code to be synchronized. Multiple values can be declared. If the option is omitted then all entries are synchronized      |
+| `--dry-run`              | Boolean | Displays only change set and summary tables but does not synchronize anything                                                   |
+| `-n`, `--no-interaction` | Boolean | Do not ask any interactive question, suitable for scheduled commands, etc.                                                      |
 
 ## Description format
 

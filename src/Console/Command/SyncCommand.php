@@ -10,6 +10,7 @@ use App\Synchronization\SynchronizerInterface;
 use App\ValueObject\GroupMode;
 use App\ValueObject\Range;
 use App\ValueObject\Rounding;
+use App\ValueObject\SyncMode;
 use DateTimeImmutable;
 use DateTimeZone;
 use Exception;
@@ -38,7 +39,8 @@ final class SyncCommand extends Command
         $this->setDescription('Synchronizes entries from the Toggl to the JIRA.')
             ->addOption('start', null, InputOption::VALUE_REQUIRED, 'Start date. The value must be a valid datetime string (absolute or relative)', 'yesterday')
             ->addOption('end', null, InputOption::VALUE_REQUIRED, 'End date. The value must be a valid datetime string (absolute or relative)', 'yesterday')
-            ->addOption('group-by-day', null, InputOption::VALUE_NONE, 'Enables "group by day" synchronization mode')
+            ->addOption('group-by-day', null, InputOption::VALUE_NONE, 'Enables "group by day" group mode')
+            ->addOption('append', null, InputOption::VALUE_NONE, 'Enables "append" sync mode')
             ->addOption('rounding', null, InputOption::VALUE_OPTIONAL, 'Rounds entries to up the minutes. The value must be an integer in the range [2-60]')
             ->addOption('issue', null, InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED, 'One or more issue codes. Only entries with the codes will be processed.')
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Dumps only change set without persisting it in the JIRA.');
@@ -59,6 +61,7 @@ final class SyncCommand extends Command
                 (new DateTimeImmutable($input->getOption('end'), new DateTimeZone('UTC')))->setTime(23, 59, 59),
             ),
             $input->getOption('group-by-day') ? GroupMode::GROUP_BY_DAY : GroupMode::DEFAULT,
+            $input->getOption('append') ? SyncMode::APPEND : SyncMode::DEFAULT,
             null !== $rounding ? new Rounding((int) $rounding) : null,
             $input->getOption('issue'),
         );
@@ -68,7 +71,7 @@ final class SyncCommand extends Command
 
         $dumper->dump($dataSet);
 
-        if ($input->getOption('dry-run') || $dataSet->diff->empty()) {
+        if ($input->getOption('dry-run') || $dataSet->diff->hasChanges()) {
             return Command::SUCCESS;
         }
 

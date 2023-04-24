@@ -21,7 +21,7 @@ use function array_sum;
 use function usort;
 
 /**
- * @phpstan-type SortedDataSet array<string, array{day: DateTimeImmutable, source?: array<Entry>, destination?: array<Entry>, inserts?: array<Entry>, updates?: array<Entry>, deletes?: array<Entry>}>
+ * @phpstan-type SortedDataSet array<string, array{day: DateTimeImmutable, source?: array<Entry>, destination?: array<Entry>, inserts?: array<Entry>, updates?: array<Entry>, deletes?: array<Entry>, intersections?: array<Entry>}>
  */
 final class DataSetDumper
 {
@@ -67,7 +67,7 @@ final class DataSetDumper
             $newDuration = array_sum(
                 array_map(
                     static fn (Entry $entry): int => $entry->duration,
-                    array_merge($data['inserts'] ?? [], $data['updates'] ?? []),
+                    array_merge($data['inserts'] ?? [], $data['updates'] ?? [], $data['intersections'] ?? []),
                 ),
             );
             $difference = $newDuration - $originalDuration;
@@ -143,6 +143,21 @@ final class DataSetDumper
             $table->addRows(!$first ? array_merge([new TableSeparator()], $dayRows) : $dayRows);
 
             $first = false;
+
+            foreach ($data['intersections'] ?? [] as $entry) {
+                $table->addRow([
+                    new TableCell(
+                        'no action',
+                        [
+                            'style' => new TableCellStyle([
+                                'fg' => 'gray',
+                            ]),
+                        ],
+                    ),
+                    (string) $entry->id,
+                    $entry->toString(60),
+                ]);
+            }
 
             foreach ($data['inserts'] ?? [] as $entry) {
                 $table->addRow([
@@ -228,6 +243,10 @@ final class DataSetDumper
 
         foreach ($dataSet->diff->deletes as $entry) {
             $sortedByDay[$getDay($entry)]['deletes'][] = $entry;
+        }
+
+        foreach ($dataSet->diff->intersections as $entry) {
+            $sortedByDay[$getDay($entry)]['intersections'][] = $entry;
         }
 
         usort($sortedByDay, static fn (array $a, array $b): int => $a['day'] <=> $b['day']);

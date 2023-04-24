@@ -20,6 +20,6 @@ final class DataSet
 
     public static function empty(): self
     {
-        return new self([], [], new Diff([], [], []));
+        return new self([], [], new Diff([], [], [], []));
     }
 }
