@@ -8,8 +8,10 @@ use App\ValueObject\Entry;
 use App\ValueObject\GroupMode;
 use DateTimeImmutable;
 use DateTimeInterface;
+use function array_unique;
 use function assert;
 use function count;
+use function implode;
 use function usort;
 
 final class DiffGenerator implements DiffGeneratorInterface
@@ -109,26 +111,26 @@ final class DiffGenerator implements DiffGeneratorInterface
         }
 
         $issue = null;
-        $description = '';
+        $descriptions = [];
         $start = null;
         $duration = 0;
 
         foreach ($entries as $entry) {
             if (null === $issue) {
                 $issue = $entry->issue;
-                $description = $entry->description;
+                $descriptions[] = $entry->description;
                 $start = $entry->start;
                 $duration = $entry->duration;
 
                 continue;
             }
 
-            $description .= "\n" . $entry->description;
+            $descriptions[] = $entry->description;
             $duration += $entry->duration;
         }
 
         assert($start instanceof DateTimeImmutable);
 
-        return [new Entry(null, $issue, $description, $start, $duration)];
+        return [new Entry(null, $issue, implode("\n", array_unique($descriptions)), $start, $duration)];
     }
 }
