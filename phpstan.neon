@@ -1,0 +1,14 @@
+includes:
+    - vendor/phpstan/phpstan-nette/extension.neon
+    - vendor/phpstan/phpstan-nette/rules.neon
+
+rules:
+    - Symplify\PHPStanRules\Rules\NoArrayAccessOnObjectRule
+
+services:
+    - Symplify\PHPStanRules\Matcher\ArrayStringAndFnMatcher
+
+parameters:
+    level: 8
+    paths:
+        - src

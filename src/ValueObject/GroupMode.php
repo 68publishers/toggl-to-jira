@@ -6,6 +6,6 @@ namespace App\ValueObject;
 
 enum GroupMode
 {
-	case DEFAULT;
-	case GROUP_BY_DAY;
+    case DEFAULT;
+    case GROUP_BY_DAY;
 }

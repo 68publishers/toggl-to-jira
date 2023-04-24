@@ -12,14 +12,18 @@
 	"require": {
 		"php": "^8.1",
 		"68publishers/environment": "^0.5",
-		"guzzlehttp/guzzle": "^7.4",
-		"nette/di": "^3.0",
-		"symfony/console": "^6.1",
-		"tracy/tracy": "^2.9"
+		"guzzlehttp/guzzle": "^7.5",
+		"nette/di": "^3.1",
+		"symfony/console": "^6.2",
+		"tracy/tracy": "^2.10"
 	},
 	"require-dev": {
-		"friendsofphp/php-cs-fixer": "^3.9.5",
-		"roave/security-advisories": "dev-latest"
+		"friendsofphp/php-cs-fixer": "^3.16.0",
+		"kubawerlos/php-cs-fixer-custom-fixers": "^3.14",
+		"phpstan/phpstan": "^1.10",
+		"phpstan/phpstan-nette": "^1.2",
+		"roave/security-advisories": "dev-latest",
+		"symplify/phpstan-rules": "11.2.5.72"
 	},
 	"config": {
 		"sort-packages": true,

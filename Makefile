@@ -36,3 +36,9 @@ push:
 rebuild:
 	make build
 	make start
+
+stan:
+	docker exec -it t2j-app vendor/bin/phpstan analyse
+
+cs:
+	docker exec -it t2j-app vendor/bin/php-cs-fixer fix -v
