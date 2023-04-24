@@ -9,9 +9,9 @@ use Psr\Log\LoggerInterface;
 
 interface WriteClientInterface
 {
-	public function createEntry(Entry $entry, LoggerInterface $logger): bool;
+    public function createEntry(Entry $entry, LoggerInterface $logger): bool;
 
-	public function updateEntry(Entry $entry, LoggerInterface $logger): bool;
+    public function updateEntry(Entry $entry, LoggerInterface $logger): bool;
 
-	public function deleteEntry(Entry $entry, LoggerInterface $logger): bool;
+    public function deleteEntry(Entry $entry, LoggerInterface $logger): bool;
 }

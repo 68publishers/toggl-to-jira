@@ -8,7 +8,7 @@ use Psr\Log\LoggerInterface;
 
 interface SynchronizerInterface
 {
-	public function generateDataSet(Options $options, ?LoggerInterface $logger = NULL): DataSet;
+    public function generateDataSet(Options $options, ?LoggerInterface $logger = null): DataSet;
 
-	public function sync(DataSet $dataSet, ?LoggerInterface $logger = NULL): bool;
+    public function sync(DataSet $dataSet, ?LoggerInterface $logger = null): bool;
 }
