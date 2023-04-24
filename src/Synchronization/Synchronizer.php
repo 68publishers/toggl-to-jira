@@ -47,7 +47,7 @@ final class Synchronizer implements SynchronizerInterface
         $logger = $logger ?? new NullLogger();
 
         try {
-            if (!$dataSet->diff->empty()) {
+            if (!$dataSet->diff->hasChanges()) {
                 return $this->doSync($dataSet->diff, $logger);
             }
 
@@ -75,11 +75,7 @@ final class Synchronizer implements SynchronizerInterface
         $issuesCodes = !empty($options->issueCodes) ? $options->issueCodes : array_unique(array_map(static fn (Entry $entry): string => $entry->issue, $sourceEntries));
         $destinationEntries = $this->destinationReader->listEntries($options->range, $issuesCodes, $logger);
 
-        $diff = $this->diffGenerator->diff($sourceEntries, $destinationEntries, $options->groupMode);
-
-        if (null !== $options->rounding) {
-            $diff = $diff->withRounding($options->rounding);
-        }
+        $diff = $this->diffGenerator->diff($sourceEntries, $destinationEntries, $options->groupMode, $options->syncMode, $options->rounding);
 
         return new DataSet($sourceEntries, $destinationEntries, $diff);
     }
