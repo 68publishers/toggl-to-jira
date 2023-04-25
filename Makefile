@@ -30,13 +30,6 @@ build:
 	rm -rf var/log/*
 	docker build -f ./docker/prod/Dockerfile . -t 68publishers/toggl-to-jira:latest
 
-push:
-	docker push 68publishers/toggl-to-jira:latest
-
-rebuild:
-	make build
-	make start
-
 stan:
 	docker exec -it t2j-app vendor/bin/phpstan analyse
 
