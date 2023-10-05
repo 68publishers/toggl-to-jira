@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Client\Jira;
 
-use App\Client\ReadClientInterface;
 use App\Client\WriteClientInterface;
 use App\Exception\AbortException;
 use App\ValueObject\Entry;
@@ -35,7 +34,7 @@ use function strlen;
 use function substr;
 use function trim;
 
-final class JiraClient implements WriteClientInterface, ReadClientInterface
+final class JiraClient implements WriteClientInterface
 {
     private readonly string $websiteUrl;
 
@@ -52,10 +51,7 @@ final class JiraClient implements WriteClientInterface, ReadClientInterface
     }
 
     /**
-     * @param array<string> $issueCodes
-     *
-     * @return array<Entry>
-     * @throws Exception
+     * @throws AbortException|Exception
      */
     public function listEntries(Range $range, array $issueCodes, LoggerInterface $logger): array
     {
