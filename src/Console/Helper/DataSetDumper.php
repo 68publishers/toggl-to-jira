@@ -57,6 +57,10 @@ final class DataSetDumper
             ]);
         }
 
+        $originalDurationTotal = 0;
+        $newDurationTotal = 0;
+        $differenceTotal = 0;
+
         foreach ($sorted as $data) {
             $originalDuration = array_sum(
                 array_map(
@@ -71,22 +75,11 @@ final class DataSetDumper
                 ),
             );
             $difference = $newDuration - $originalDuration;
+            [$pre, $color] = $this->resolveSymbolAndColor($difference);
 
-            switch (true) {
-                case 0 < $difference:
-                    $pre = '+';
-                    $color = 'green';
-
-                    break;
-                case 0 > $difference:
-                    $pre = '-';
-                    $color = 'red';
-
-                    break;
-                default:
-                    $pre = '';
-                    $color = 'yellow';
-            }
+            $originalDurationTotal += $originalDuration;
+            $newDurationTotal += $newDuration;
+            $differenceTotal += $difference;
 
             $table->addRow([
                 $data['day']->format('Y-m-d'),
@@ -102,6 +95,32 @@ final class DataSetDumper
                 ),
             ]);
         }
+
+        [$pre, $color] = $this->resolveSymbolAndColor($differenceTotal);
+
+        $table->addRows([
+            new TableSeparator(),
+            [
+                new TableCell(
+                    'Totals',
+                    [
+                        'style' => new TableCellStyle([
+                            'fg' => 'green',
+                        ]),
+                    ],
+                ),
+                DurationFormatter::format($originalDurationTotal),
+                DurationFormatter::format($newDurationTotal),
+                new TableCell(
+                    $pre . DurationFormatter::format(abs($differenceTotal)),
+                    [
+                        'style' => new TableCellStyle([
+                            'fg' => $color,
+                        ]),
+                    ],
+                ),
+            ],
+        ]);
 
         $table->render();
     }
@@ -252,5 +271,17 @@ final class DataSetDumper
         usort($sortedByDay, static fn (array $a, array $b): int => $a['day'] <=> $b['day']);
 
         return $sortedByDay;
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    private function resolveSymbolAndColor(int|float $number): array
+    {
+        return match (true) {
+            0 < $number => ['+', 'green'],
+            0 > $number => ['-', 'red'],
+            default => ['', 'yellow'],
+        };
     }
 }
