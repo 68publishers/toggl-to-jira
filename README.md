@@ -56,21 +56,21 @@ $ make
 Synchronization is started with:
 
 ```sh
-$ docker exec -it t2j-app bin/console sync --start <START_DATE> --end <END_DATE> [--group-by-day] [--rounding <ROUNDING>] [--issue <ISSUE_CODE>] [--dry-run] [--no-interaction]
+$ docker exec -it t2j-app bin/console sync --start <START_DATE> --end <END_DATE> [--group-by-day] [--rounding <ROUNDING>] [--filter <FILTER_NAME=FILTER_VALUE>] [--dry-run] [--no-interaction]
 ```
 
 ## Available Options
 
-| Option                   | Type    | Description                                                                                                                     |
-|--------------------------|---------|---------------------------------------------------------------------------------------------------------------------------------|
-| `--start`                | String  | Accepts datetime strings - absolute or relative, default: `yesterday`                                                           |
-| `--end`                  | String  | Accepts datetime strings - absolute or relative, default: `yesterday`                                                           |
-| `--group-by-day`         | Boolean | Group all daily entries into one (per issue)                                                                                    |
-| `--append`               | Boolean | All entries will be added without creating a diff. Will cause duplicates if the command is run multiple times on the same day   |
-| `--rounding`             | Integer | All entries will be rounded to up the given minutes [2-60]                                                                      |
-| `--issue`                | String  | Issue code to be synchronized. Multiple values can be declared. If the option is omitted then all entries are synchronized      |
-| `--dry-run`              | Boolean | Displays only change set and summary tables but do not synchronize anything                                                     |
-| `-n`, `--no-interaction` | Boolean | Do not ask any interactive question, suitable for scheduled commands, etc.                                                      |
+| Option                   | Type    | Description                                                                                                                                                                                                       |
+|--------------------------|---------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `--start`                | String  | Accepts datetime strings - absolute or relative, default: `yesterday`                                                                                                                                             |
+| `--end`                  | String  | Accepts datetime strings - absolute or relative, default: `yesterday`                                                                                                                                             |
+| `--group-by-day`         | Boolean | Group all daily entries into one (per issue)                                                                                                                                                                      |
+| `--append`               | Boolean | All entries will be added without creating a diff. Will cause duplicates if the command is run multiple times on the same day                                                                                     |
+| `--rounding`             | Integer | All entries will be rounded to up the given minutes [2-60]                                                                                                                                                        |
+| `--filter`               | String  | Filter in the format "filterName=filterValue" that entries must meet for synchronization. Multiple values can be declared, between filters with the same name is OR, between filters with different names is AND. |
+| `--dry-run`              | Boolean | Displays only change set and summary tables but do not synchronize anything                                                                                                                                       |
+| `-n`, `--no-interaction` | Boolean | Do not ask any interactive question, suitable for scheduled commands, etc.                                                                                                                                        |
 
 ## Description format
 
@@ -86,6 +86,26 @@ For example, if the issue in Jira has code `PROJ-123` and the name of the issue 
 - `PROJ-123 UX improvements` - the entry is imported with an empty comment
 - `PROJ-123 UX improvements Fixed footer on small devices` - the entry is imported with a comment `Fixed footer on small devices`
 - `PROJ-123 Fixed footer on small devices` - the entry is imported with a comment `Fixed footer on small devices`
+
+## Supported filters
+
+- `issueCode`
+- `workspaceId`
+- `workspaceName`
+- `projectId`
+- `projectName`
+
+### Filters example
+
+Entries must be in the project "Demo" or "Demo2":
+```
+--filter "projectName=Demo" --filter="projectName=Demo2"
+```
+
+Entries must be in the workspace "My company" and must have the issue code "PROJ-123":
+```
+--filter "workspaceName=My company" --filter="issueCode=PROJ-123"
+```
 
 ## Limitations
 
