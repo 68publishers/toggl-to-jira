@@ -14,9 +14,8 @@ services:
 	synchronizer:
 		type: App\Synchronization\Synchronizer
 		arguments:
-			sourceReader: @client.toggl
-			destinationReader: @client.jira
-			destinationWriter: @client.jira
+			readClient: @client.toggl
+			writeClient: @client.jira
 
 	http_client: GuzzleHttp\Client
 

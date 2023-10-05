@@ -17,9 +17,8 @@ use function array_unique;
 final class Synchronizer implements SynchronizerInterface
 {
     public function __construct(
-        private readonly ReadClientInterface $sourceReader,
-        private readonly ReadClientInterface $destinationReader,
-        private readonly WriteClientInterface $destinationWriter,
+        private readonly ReadClientInterface $readClient,
+        private readonly WriteClientInterface $writeClient,
         private readonly DiffGeneratorInterface $diffGenerator,
     ) {}
 
@@ -64,7 +63,7 @@ final class Synchronizer implements SynchronizerInterface
      */
     private function createDataSet(Options $options, LoggerInterface $logger): DataSet
     {
-        $sourceEntries = $this->sourceReader->listEntries($options->range, $options->issueCodes, $logger);
+        $sourceEntries = $this->readClient->listEntries($options->range, $options->filters, $logger);
 
         if (empty($sourceEntries)) {
             $logger->info('Nothing to synchronize.');
@@ -73,7 +72,7 @@ final class Synchronizer implements SynchronizerInterface
         }
 
         $issuesCodes = !empty($options->issueCodes) ? $options->issueCodes : array_unique(array_map(static fn (Entry $entry): string => $entry->issue, $sourceEntries));
-        $destinationEntries = $this->destinationReader->listEntries($options->range, $issuesCodes, $logger);
+        $destinationEntries = $this->writeClient->listEntries($options->range, $issuesCodes, $logger);
 
         $diff = $this->diffGenerator->diff($sourceEntries, $destinationEntries, $options->groupMode, $options->syncMode, $options->rounding);
 
@@ -85,19 +84,19 @@ final class Synchronizer implements SynchronizerInterface
         $ok = true;
 
         foreach ($diff->deletes as $entry) {
-            if (!$this->destinationWriter->deleteEntry($entry, $logger)) {
+            if (!$this->writeClient->deleteEntry($entry, $logger)) {
                 $ok = false;
             }
         }
 
         foreach ($diff->updates as $entry) {
-            if (!$this->destinationWriter->updateEntry($entry, $logger)) {
+            if (!$this->writeClient->updateEntry($entry, $logger)) {
                 $ok = false;
             }
         }
 
         foreach ($diff->inserts as $entry) {
-            if (!$this->destinationWriter->createEntry($entry, $logger)) {
+            if (!$this->writeClient->createEntry($entry, $logger)) {
                 $ok = false;
             }
         }

@@ -7,6 +7,7 @@ namespace App\Console\Command;
 use App\Console\Helper\DataSetDumper;
 use App\Synchronization\Options;
 use App\Synchronization\SynchronizerInterface;
+use App\ValueObject\Filter;
 use App\ValueObject\GroupMode;
 use App\ValueObject\Range;
 use App\ValueObject\Rounding;
@@ -22,7 +23,9 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Logger\ConsoleLogger;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Question\ConfirmationQuestion;
+use function array_map;
 use function assert;
+use function is_array;
 
 final class SyncCommand extends Command
 {
@@ -42,7 +45,7 @@ final class SyncCommand extends Command
             ->addOption('group-by-day', null, InputOption::VALUE_NONE, 'Enables "group by day" group mode')
             ->addOption('append', null, InputOption::VALUE_NONE, 'Enables "append" sync mode')
             ->addOption('rounding', null, InputOption::VALUE_OPTIONAL, 'Rounds entries to up the minutes. The value must be an integer in the range [2-60]')
-            ->addOption('issue', null, InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED, 'One or more issue codes. Only entries with the codes will be processed.')
+            ->addOption('filter', null, InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED, 'One or more filters in format "filter_name=filter_value". Only entries that matches filters will be processed.')
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Dumps only change set without persisting it in the JIRA.');
     }
 
@@ -55,15 +58,21 @@ final class SyncCommand extends Command
             LogLevel::WARNING => 'comment',
         ]);
         $rounding = $input->getOption('rounding');
+        $filters = $input->getOption('filter');
+        assert(is_array($filters));
+
         $options = new Options(
-            new Range(
+            range: new Range(
                 (new DateTimeImmutable($input->getOption('start'), new DateTimeZone('UTC')))->setTime(0, 0),
                 (new DateTimeImmutable($input->getOption('end'), new DateTimeZone('UTC')))->setTime(23, 59, 59),
             ),
-            $input->getOption('group-by-day') ? GroupMode::GROUP_BY_DAY : GroupMode::DEFAULT,
-            $input->getOption('append') ? SyncMode::APPEND : SyncMode::DEFAULT,
-            null !== $rounding ? new Rounding((int) $rounding) : null,
-            $input->getOption('issue'),
+            groupMode: $input->getOption('group-by-day') ? GroupMode::GROUP_BY_DAY : GroupMode::DEFAULT,
+            syncMode: $input->getOption('append') ? SyncMode::APPEND : SyncMode::DEFAULT,
+            rounding: null !== $rounding ? new Rounding((int) $rounding) : null,
+            filters: array_map(
+                static fn (string $filter): Filter => Filter::fromString($filter),
+                $filters,
+            ),
         );
 
         $dataSet = $this->synchronizer->generateDataSet($options, $logger);
