@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2023-10-13
+
 ### Added
 
 - Added row with totals to the summary table.
@@ -37,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release.
 
-[unreleased]: https://github.com/68publishers/toggl-to-jira/compare/v1.1.0...main
+[unreleased]: https://github.com/68publishers/toggl-to-jira/compare/v1.2.0...main
+[1.2.0]: https://github.com/68publishers/toggl-to-jira/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/68publishers/toggl-to-jira/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/68publishers/toggl-to-jira/commits/v1.0.0
