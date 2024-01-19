@@ -27,6 +27,11 @@ final class DurationFormatter
 
         $interval = $start->diff($end);
         $hours = $interval->h;
+
+        if (false !== $interval->days) {
+            $hours += 24 * $interval->days;
+        }
+
         $minutes = $interval->i;
 
         return 0 < $hours ? ($hours . 'h ' . $minutes . 'm') : ($minutes . 'm');
