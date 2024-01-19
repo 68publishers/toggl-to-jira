@@ -106,7 +106,7 @@ final class TogglClient implements ReadClientInterface
      */
     private function createEntry(array $entry, array $filters, LoggerInterface $logger): ?Entry
     {
-        $parsed = false !== (bool) preg_match('/^(?<ISSUE>[a-zA-Z]+-\d+)( +)?(?<DESCRIPTION>.*)?$/', $entry['description'], $m);
+        $parsed = false !== (bool) preg_match('/^(?<ISSUE>[a-zA-Z\-\d]+)( +)?(?<DESCRIPTION>.*)?$/', $entry['description'], $m);
         $stop = $entry['stop'] ?? null;
 
         if (!$parsed || !isset($m['ISSUE'], $m['DESCRIPTION'])) {
