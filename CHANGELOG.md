@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed parsing regex for Toggl entries.
+- Fixed duration formatting when the duration is higher than one day.
+
 ## [1.2.0] - 2023-10-13
 
 ### Added
