@@ -61,16 +61,17 @@ $ docker exec -it t2j-app bin/console sync --start <START_DATE> --end <END_DATE>
 
 ## Available Options
 
-| Option                   | Type    | Description                                                                                                                                                                                                       |
-|--------------------------|---------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `--start`                | String  | Accepts datetime strings - absolute or relative, default: `yesterday`                                                                                                                                             |
-| `--end`                  | String  | Accepts datetime strings - absolute or relative, default: `yesterday`                                                                                                                                             |
-| `--group-by-day`         | Boolean | Group all daily entries into one (per issue)                                                                                                                                                                      |
-| `--append`               | Boolean | All entries will be added without creating a diff. Will cause duplicates if the command is run multiple times on the same day                                                                                     |
-| `--rounding`             | Integer | All entries will be rounded to up the given minutes [2-60]                                                                                                                                                        |
+| Option                   | Type    | Description                                                                                                                                                                                                      |
+|--------------------------|---------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `--start`                | String  | Accepts datetime strings - absolute or relative, default: `yesterday`                                                                                                                                            |
+| `--end`                  | String  | Accepts datetime strings - absolute or relative, default: `yesterday`                                                                                                                                            |
+| `--group-by-day`         | Boolean | Group all daily entries into one (per issue)                                                                                                                                                                     |
+| `--append`               | Boolean | All entries will be added without creating a diff. Will cause duplicates if the command is run multiple times on the same day                                                                                    |
+| `--prune`                | Boolean | All entries will be synchronized by default, however existing entries in JIRA for issues that do not exist in Toggl will be removed. This option can not be combined with the `--append` option                  |
+| `--rounding`             | Integer | All entries will be rounded to up the given minutes [2-60]                                                                                                                                                       |
 | `--filter`               | String  | Filter in the format "filterName=filterValue" that entries must meet for synchronization. Multiple values can be declared, between filters with the same name is OR, between filters with different names is AND. |
-| `--dry-run`              | Boolean | Displays only change set and summary tables but do not synchronize anything                                                                                                                                       |
-| `-n`, `--no-interaction` | Boolean | Do not ask any interactive question, suitable for scheduled commands, etc.                                                                                                                                        |
+| `--dry-run`              | Boolean | Displays only change set and summary tables but do not synchronize anything                                                                                                                                      |
+| `-n`, `--no-interaction` | Boolean | Do not ask any interactive question, suitable for scheduled commands, etc.                                                                                                                                       |
 
 ## Description format
 

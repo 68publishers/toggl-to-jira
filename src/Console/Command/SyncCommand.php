@@ -43,7 +43,8 @@ final class SyncCommand extends Command
             ->addOption('start', null, InputOption::VALUE_REQUIRED, 'Start date. The value must be a valid datetime string (absolute or relative)', 'yesterday')
             ->addOption('end', null, InputOption::VALUE_REQUIRED, 'End date. The value must be a valid datetime string (absolute or relative)', 'yesterday')
             ->addOption('group-by-day', null, InputOption::VALUE_NONE, 'Enables "group by day" group mode')
-            ->addOption('append', null, InputOption::VALUE_NONE, 'Enables "append" sync mode')
+            ->addOption('append', null, InputOption::VALUE_NONE, 'Enables "append" sync mode. All entries will be added without creating a diff. Will cause duplicates if the command is run multiple times on the same day')
+            ->addOption('prune', null, InputOption::VALUE_NONE, 'Enabled "prune" sync mode. All entries will be synchronized by default, however existing entries in JIRA for issues that do not exist in Toggl will be removed.')
             ->addOption('rounding', null, InputOption::VALUE_OPTIONAL, 'Rounds entries to up the minutes. The value must be an integer in the range [2-60]')
             ->addOption('filter', null, InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED, 'One or more filters in format "filter_name=filter_value". Only entries that matches filters will be processed.')
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Dumps only change set without persisting it in the JIRA.');
@@ -60,6 +61,14 @@ final class SyncCommand extends Command
         $rounding = $input->getOption('rounding');
         $filters = $input->getOption('filter');
         assert(is_array($filters));
+        $append = (bool) $input->getOption('append');
+        $prune = (bool) $input->getOption('prune');
+
+        if ($append && $prune) {
+            $logger->error('Options `--append` and `--prune` can not be used together.');
+
+            return Command::FAILURE;
+        }
 
         $options = new Options(
             range: new Range(
@@ -67,7 +76,7 @@ final class SyncCommand extends Command
                 (new DateTimeImmutable($input->getOption('end'), new DateTimeZone('UTC')))->setTime(23, 59, 59),
             ),
             groupMode: $input->getOption('group-by-day') ? GroupMode::GROUP_BY_DAY : GroupMode::DEFAULT,
-            syncMode: $input->getOption('append') ? SyncMode::APPEND : SyncMode::DEFAULT,
+            syncMode: $append ? SyncMode::APPEND : ($prune ? SyncMode::PRUNE : SyncMode::DEFAULT),
             rounding: null !== $rounding ? new Rounding((int) $rounding) : null,
             filters: array_map(
                 static fn (string $filter): Filter => Filter::fromString($filter),
