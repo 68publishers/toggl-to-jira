@@ -8,6 +8,7 @@ use App\Client\ReadClientInterface;
 use App\Client\WriteClientInterface;
 use App\Exception\AbortException;
 use App\ValueObject\Entry;
+use App\ValueObject\SyncMode;
 use Exception;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -64,14 +65,15 @@ final class Synchronizer implements SynchronizerInterface
     private function createDataSet(Options $options, LoggerInterface $logger): DataSet
     {
         $sourceEntries = $this->readClient->listEntries($options->range, $options->filters, $logger);
+        $prune = SyncMode::PRUNE === $options->syncMode;
 
-        if (empty($sourceEntries)) {
+        if (!$prune && empty($sourceEntries)) {
             $logger->info('Nothing to synchronize.');
 
             return DataSet::empty();
         }
 
-        $issuesCodes = !empty($options->issueCodes) ? $options->issueCodes : array_unique(array_map(static fn (Entry $entry): string => $entry->issue, $sourceEntries));
+        $issuesCodes = !$prune ? array_unique(array_map(static fn (Entry $entry): string => $entry->issue, $sourceEntries)) : null;
         $destinationEntries = $this->writeClient->listEntries($options->range, $issuesCodes, $logger);
 
         $diff = $this->diffGenerator->diff($sourceEntries, $destinationEntries, $options->groupMode, $options->syncMode, $options->rounding);

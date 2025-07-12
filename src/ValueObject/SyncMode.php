@@ -8,4 +8,5 @@ enum SyncMode
 {
     case DEFAULT;
     case APPEND;
+    case PRUNE;
 }

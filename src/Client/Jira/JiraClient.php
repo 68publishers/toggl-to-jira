@@ -53,14 +53,18 @@ final class JiraClient implements WriteClientInterface
     /**
      * @throws AbortException|Exception
      */
-    public function listEntries(Range $range, array $issueCodes, LoggerInterface $logger): array
+    public function listEntries(Range $range, ?array $issueCodes, LoggerInterface $logger): array
     {
-        if (empty($issueCodes)) {
+        if (is_array($issueCodes) && empty($issueCodes)) {
             throw new AbortException('[jira] Please provide an array of issue codes.');
         }
 
         $entries = [];
         $accountId = $this->fetchAccountId();
+
+        if (null === $issueCodes) {
+            $issueCodes = $this->fetchAllIssueCodes($range);
+        }
 
         foreach ($issueCodes as $issueCode) {
             $workLogs = $this->fetchWorkLog($issueCode, $range, $logger);
@@ -259,6 +263,58 @@ final class JiraClient implements WriteClientInterface
         assert(null === $issueTitle || is_string($issueTitle));
 
         return $issueTitle;
+    }
+
+    /**
+     * @return list<string>
+     * @throws AbortException
+     */
+    private function fetchAllIssueCodes(Range $range): array
+    {
+        $issueCodes = $this->hitCache('all-issue-codes-' . $range->start->format(DateTimeInterface::ATOM) . '-' . $range->end->format(DateTimeInterface::ATOM), function () use ($range) {
+            $jql = sprintf(
+                'worklogAuthor = currentUser() AND worklogDate >= %d AND worklogDate <= %d',
+                ($range->start->getTimestamp() - 1) * 1000,
+                ($range->end->getTimestamp() + 1) * 1000,
+            );
+            $startAt = 0;
+            $issueCodes = [];
+
+            try {
+                do {
+                    $response = $this->client->request('GET', $this->websiteUrl . '/search', [
+                        'headers' => $this->createHeaders(),
+                        'query' => [
+                            'jql' => $jql,
+                            'fields' => 'key',
+                            'startAt' => $startAt,
+                            'maxResults' => 100,
+                        ],
+                    ]);
+
+                    $data = json_decode($response->getBody()->getContents(), false, 512, JSON_THROW_ON_ERROR);
+
+                    foreach ($data->issues ?? [] as $issue) {
+                        $issueCodes[] = $issue->key;
+                    }
+
+                    $total = $data->total;
+                    $startAt += $data->maxResults;
+                } while ($startAt < $total);
+            } catch (Throwable $e) {
+                throw new AbortException(
+                    '[jira] Can not fetch all issue codes.' . $e->getMessage(),
+                    0,
+                    $e,
+                );
+            }
+
+            return $issueCodes;
+        });
+
+        assert(is_array($issueCodes));
+
+        return $issueCodes;
     }
 
     /**

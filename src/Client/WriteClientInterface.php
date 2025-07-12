@@ -12,12 +12,12 @@ use Psr\Log\LoggerInterface;
 interface WriteClientInterface
 {
     /**
-     * @param array<string> $issueCodes
+     * @param array<string>|null $issueCodes
      *
      * @return array<Entry>
      * @throws AbortException
      */
-    public function listEntries(Range $range, array $issueCodes, LoggerInterface $logger): array;
+    public function listEntries(Range $range, ?array $issueCodes, LoggerInterface $logger): array;
 
     public function createEntry(Entry $entry, LoggerInterface $logger): bool;
 
