@@ -303,7 +303,7 @@ final class JiraClient implements WriteClientInterface
                 } while ($startAt < $total);
             } catch (Throwable $e) {
                 throw new AbortException(
-                    '[jira] Can not fetch all issue codes.' . $e->getMessage(),
+                    '[jira] Can not fetch all issue codes. ' . $e->getMessage(),
                     0,
                     $e,
                 );

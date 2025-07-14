@@ -109,7 +109,7 @@ final class TogglClient implements ReadClientInterface
         $parsed = false !== (bool) preg_match('/^(?<ISSUE>[a-zA-Z\-\d]+)( +)?(?<DESCRIPTION>.*)?$/', $entry['description'], $m);
         $stop = $entry['stop'] ?? null;
 
-        if (!$parsed || !isset($m['ISSUE'], $m['DESCRIPTION'])) {
+        if (!$parsed) {
             $logger->warning(sprintf(
                 '[toggl] Can not synchronize entry "%s" from %s - %s. The entry description is not properly formatted.',
                 $entry['description'],
@@ -158,7 +158,7 @@ final class TogglClient implements ReadClientInterface
             $entryEntity = new Entry(
                 (string) $entry['id'],
                 $issueCode,
-                trim($m['DESCRIPTION']),
+                trim($m['DESCRIPTION'] ?? ''),
                 (new DateTimeImmutable($entry['start']))->setTimezone(new DateTimeZone('UTC')),
                 $entry['duration'],
             );
