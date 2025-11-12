@@ -277,30 +277,38 @@ final class JiraClient implements WriteClientInterface
                 ($range->start->getTimestamp() - 1) * 1000,
                 ($range->end->getTimestamp() + 1) * 1000,
             );
-            $startAt = 0;
+
             $issueCodes = [];
+            $nextPageToken = null;
 
             try {
                 do {
-                    $response = $this->client->request('GET', $this->websiteUrl . '/search', [
+                    $query = [
+                        'jql' => $jql,
+                        'fields' => 'key',
+                        'maxResults' => 100,
+                    ];
+
+                    if (null !== $nextPageToken) {
+                        $query['nextPageToken'] = $nextPageToken;
+                    }
+
+                    $response = $this->client->request('GET', $this->websiteUrl . '/search/jql', [
                         'headers' => $this->createHeaders(),
-                        'query' => [
-                            'jql' => $jql,
-                            'fields' => 'key',
-                            'startAt' => $startAt,
-                            'maxResults' => 100,
-                        ],
+                        'query' => $query,
                     ]);
 
                     $data = json_decode($response->getBody()->getContents(), false, 512, JSON_THROW_ON_ERROR);
 
                     foreach ($data->issues ?? [] as $issue) {
-                        $issueCodes[] = $issue->key;
+                        if (isset($issue->key) && is_string($issue->key)) {
+                            $issueCodes[] = $issue->key;
+                        }
                     }
 
-                    $total = $data->total;
-                    $startAt += $data->maxResults;
-                } while ($startAt < $total);
+                    $isLast = (bool) ($data->isLast ?? true);
+                    $nextPageToken = $data->nextPageToken ?? null;
+                } while (!$isLast && null !== $nextPageToken);
             } catch (Throwable $e) {
                 throw new AbortException(
                     '[jira] Can not fetch all issue codes. ' . $e->getMessage(),
